@@ -1,14 +1,10 @@
-name: "Onboarding Cost Calculator"
+display_name: "Onboarding Cost Calculator"
 description: "Calculate one-time and recurring onboarding costs"
-author: "Samir"
 
-command: "streamlit run app.py"
+entrypoint:
+  command: streamlit
+  args:
+    - run
+    - app.py
 
-python_version: "3.11"
-
-requirements:
-  - requirements.txt
-
-resources:
-  cpu: "0.5"
-  memory: "512M"
+python_requirements_path: requirements.txt
