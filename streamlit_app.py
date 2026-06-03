@@ -1,61 +1,213 @@
 import streamlit as st
 
-st.set_page_config(page_title="Onboarding Cost Calculator", page_icon="📊", layout="centered")
+st.set_page_config(page_title="Onboarding Cost Request", page_icon="📥", layout="centered")
 
-st.title("Onboarding Cost Calculator")
+page_style = """
+    <style>
+        .stApp {
+            background: linear-gradient(180deg, #f7fafc 0%, #edf2f7 100%);
+            color: #0f172a;
+        }
+        .title {
+            color: #0f172a;
+        }
+        .section-header {
+            font-size: 1.4rem;
+            color: #1d4ed8;
+            margin-bottom: 0.3rem;
+        }
+        .stButton>button {
+            background-color: #2563eb;
+            color: white;
+            border-radius: 0.75rem;
+            padding: 0.75rem 1rem;
+        }
+        .stButton>button:hover {
+            background-color: #1d4ed8;
+            color: white;
+        }
+    </style>
+"""
+
+st.markdown(page_style, unsafe_allow_html=True)
+
+if "step" not in st.session_state:
+    st.session_state.step = 1
+    st.session_state.business_name = ""
+    st.session_state.request_type = "New source ingestion request"
+    st.session_state.data_volume = 10.0
+    st.session_state.frequency = "Daily"
+    st.session_state.retention_months = 12
+    st.session_state.ingestion_mode = "Incremental"
+    st.session_state.load_type = "SQL"
+    st.session_state.estimate = None
+
+st.title("Onboarding Request Cost Estimator")
 st.markdown(
-    "Enter your onboarding assumptions below to compute the one-time onboarding cost plus monthly and annual running costs."
+    "Use this guided form to capture your onboarding request details and estimate the cost for data ingestion."
 )
-
-st.header("One-time onboarding cost")
-setup_fee = st.number_input("Setup fee ($)", min_value=0.0, value=5000.0, step=100.0, format="%.2f")
-training_hours = st.number_input("Training hours", min_value=0.0, value=20.0, step=1.0)
-training_rate = st.number_input("Training hourly rate ($)", min_value=0.0, value=150.0, step=5.0, format="%.2f")
-data_migration_cost = st.number_input("Data migration cost ($)", min_value=0.0, value=2000.0, step=100.0, format="%.2f")
-consulting_cost = st.number_input("Consulting / implementation cost ($)", min_value=0.0, value=3000.0, step=100.0, format="%.2f")
-
-st.header("Running costs")
-monthly_license = st.number_input("Monthly license or subscription cost ($)", min_value=0.0, value=1200.0, step=50.0, format="%.2f")
-monthly_support = st.number_input("Monthly support or maintenance cost ($)", min_value=0.0, value=800.0, step=50.0, format="%.2f")
-monthly_cloud = st.number_input("Monthly infrastructure / cloud cost ($)", min_value=0.0, value=1000.0, step=50.0, format="%.2f")
-additional_monthly = st.number_input("Additional monthly operating cost ($)", min_value=0.0, value=500.0, step=50.0, format="%.2f")
-
-st.header("Optional onboarding scope")
-user_count = st.number_input("Number of onboarded users", min_value=0, value=50, step=1)
-st.write(
-    "Optional: use this value for per-user estimates or to compare how onboarding scale impacts total cost. "
-)
-
-# calculations
-training_cost = training_hours * training_rate
-one_time_cost = setup_fee + training_cost + data_migration_cost + consulting_cost
-monthly_running_cost = monthly_license + monthly_support + monthly_cloud + additional_monthly
-yearly_running_cost = monthly_running_cost * 12
-cost_per_user = one_time_cost / user_count if user_count > 0 else 0.0
-
-st.divider()
-
-st.subheader("Results")
-col1, col2 = st.columns(2)
-with col1:
-    st.metric("One-time onboarding cost", f"${one_time_cost:,.2f}")
-    st.metric("Monthly running cost", f"${monthly_running_cost:,.2f}")
-with col2:
-    st.metric("Annual running cost", f"${yearly_running_cost:,.2f}")
-    st.metric("Onboarding cost per user", f"${cost_per_user:,.2f}")
 
 st.markdown("---")
 
-st.subheader("Cost breakdown")
-st.write(
-    f"- Setup fee: ${setup_fee:,.2f}\n"
-    f"- Training cost: ${training_cost:,.2f} ({training_hours} hrs @ ${training_rate:,.2f}/hr)\n"
-    f"- Data migration: ${data_migration_cost:,.2f}\n"
-    f"- Consulting / implementation: ${consulting_cost:,.2f}\n"
-    f"- Monthly license: ${monthly_license:,.2f}\n"
-    f"- Monthly support: ${monthly_support:,.2f}\n"
-    f"- Monthly cloud: ${monthly_cloud:,.2f}\n"
-    f"- Additional monthly operating cost: ${additional_monthly:,.2f}"
-)
+if st.session_state.step == 1:
+    st.markdown("## Step 1: Business request details")
+    with st.form(key="business_form"):
+        st.markdown("<div class='section-header'>Tell us about the request</div>", unsafe_allow_html=True)
+        business_name = st.text_input("Business user / team name", st.session_state.business_name)
+        request_type = st.radio(
+            "Is this a new source ingestion request or new data to an existing source?",
+            ["New source ingestion request", "New data to existing source"],
+            index=0 if st.session_state.request_type == "New source ingestion request" else 1,
+        )
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            back = st.form_submit_button("Reset")
+        with col2:
+            continue_button = st.form_submit_button("Continue")
 
-st.caption("Use the input fields above to adjust assumptions and see how the one-time and recurring costs change.")
+        if back:
+            st.session_state.business_name = ""
+            st.session_state.request_type = "New source ingestion request"
+        if continue_button:
+            st.session_state.business_name = business_name.strip()
+            st.session_state.request_type = request_type
+            st.session_state.step = 2
+
+    if st.session_state.business_name:
+        st.info(f"Current request for: **{st.session_state.business_name}**")
+        st.write(f"Request type: **{st.session_state.request_type}**")
+
+elif st.session_state.step == 2:
+    st.markdown("## Step 2: Ingestion details")
+    with st.form(key="detail_form"):
+        st.markdown("<div class='section-header'>Fill in the pipeline parameters</div>", unsafe_allow_html=True)
+        data_volume = st.number_input(
+            "Estimated data volume (GB)",
+            min_value=0.0,
+            value=st.session_state.data_volume,
+            step=1.0,
+            format="%.1f",
+        )
+        frequency = st.selectbox(
+            "Pipeline frequency",
+            ["Daily", "Weekly", "Monthly", "Ad-hoc"],
+            index=["Daily", "Weekly", "Monthly", "Ad-hoc"].index(st.session_state.frequency),
+        )
+        retention_months = st.number_input(
+            "Retention period (months)",
+            min_value=1,
+            value=st.session_state.retention_months,
+            step=1,
+        )
+        ingestion_mode = st.radio(
+            "Ingestion mode",
+            ["Incremental", "Bulk", "CDC"],
+            index=["Incremental", "Bulk", "CDC"].index(st.session_state.ingestion_mode),
+        )
+
+        load_type = None
+        if st.session_state.request_type == "New source ingestion request":
+            load_type = st.selectbox(
+                "Type of data load",
+                ["SQL", "SFTP", "S3", "API", "Kafka"],
+                index=["SQL", "SFTP", "S3", "API", "Kafka"].index(st.session_state.load_type),
+            )
+
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            back_button = st.form_submit_button("Back")
+        with col2:
+            estimate_button = st.form_submit_button("Estimate Cost")
+
+        if back_button:
+            st.session_state.step = 1
+        if estimate_button:
+            st.session_state.data_volume = data_volume
+            st.session_state.frequency = frequency
+            st.session_state.retention_months = retention_months
+            st.session_state.ingestion_mode = ingestion_mode
+            if load_type is not None:
+                st.session_state.load_type = load_type
+
+            # Simple cost estimation logic
+            base = 1200
+            volume_cost = st.session_state.data_volume * 6
+            frequency_factor = {
+                "Daily": 2.0,
+                "Weekly": 1.5,
+                "Monthly": 1.2,
+                "Ad-hoc": 1.0,
+            }[st.session_state.frequency]
+            retention_factor = 1.0 + min(st.session_state.retention_months, 36) / 36 * 0.25
+            ingestion_factor = {
+                "Incremental": 1.0,
+                "Bulk": 1.2,
+                "CDC": 1.4,
+            }[st.session_state.ingestion_mode]
+            source_factor = 1.25 if st.session_state.request_type == "New source ingestion request" else 1.0
+            load_type_factor = {
+                "SQL": 1.0,
+                "SFTP": 1.1,
+                "S3": 1.05,
+                "API": 1.2,
+                "Kafka": 1.3,
+            }.get(st.session_state.load_type, 1.0)
+
+            estimate = (
+                base * frequency_factor * retention_factor * ingestion_factor * source_factor * load_type_factor
+                + volume_cost
+            )
+            monthly_estimate = estimate * 0.08
+            st.session_state.estimate = {
+                "total": round(estimate, 2),
+                "monthly": round(monthly_estimate, 2),
+                "volume_cost": round(volume_cost, 2),
+                "frequency_factor": frequency_factor,
+                "retention_factor": round(retention_factor, 3),
+                "ingestion_factor": ingestion_factor,
+                "source_factor": source_factor,
+                "load_type": st.session_state.load_type,
+            }
+            st.session_state.step = 3
+
+    st.markdown("---")
+    st.info(f"Request type: **{st.session_state.request_type}**")
+    if st.session_state.request_type == "New source ingestion request":
+        st.write(f"Data load type: **{st.session_state.load_type}**")
+    st.write(f"Business request by: **{st.session_state.business_name or 'Not provided'}**")
+
+elif st.session_state.step == 3:
+    st.markdown("## Step 3: Cost estimate")
+    if st.session_state.estimate is None:
+        st.error("No estimate available yet. Please complete the form first.")
+    else:
+        estimate = st.session_state.estimate
+        st.success("Your onboarding cost estimate is ready!")
+        st.metric("Estimated onboarding cost", f"${estimate['total']:,.2f}")
+        st.metric("Recommended monthly reserve", f"${estimate['monthly']:,.2f}")
+
+        st.markdown("### Estimate details")
+        st.write(f"- Data volume: **{st.session_state.data_volume:,.1f} GB**")
+        st.write(f"- Frequency: **{st.session_state.frequency}**")
+        st.write(f"- Retention: **{st.session_state.retention_months} months**")
+        st.write(f"- Ingestion mode: **{st.session_state.ingestion_mode}**")
+        if st.session_state.request_type == "New source ingestion request":
+            st.write(f"- Load type: **{st.session_state.load_type}**")
+        st.write(f"- Volume cost portion: **${estimate['volume_cost']:,.2f}**")
+        st.write(
+            f"- Factor multipliers: frequency **x{estimate['frequency_factor']}**, retention **x{estimate['retention_factor']}**, ingestion **x{estimate['ingestion_factor']}**, source **x{estimate['source_factor']}**"
+        )
+
+        with st.expander("See full calculation details"):
+            st.write(
+                "Base estimate * frequency * retention * ingestion * source * load type + volume cost"
+            )
+            st.write(
+                f"Base: $1200 * {estimate['frequency_factor']} * {estimate['retention_factor']} * {estimate['ingestion_factor']} * {estimate['source_factor']} * {load_type_factor if 'load_type' in estimate else 1.0}"
+            )
+            st.write(f"Volume cost: ${estimate['volume_cost']:,.2f}")
+
+        if st.button("Start a new request"):
+            st.session_state.step = 1
+            st.session_state.estimate = None
+
